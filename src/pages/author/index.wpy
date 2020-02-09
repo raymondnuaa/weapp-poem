@@ -2,6 +2,18 @@
   .top-content {
     height: 42px;
   }
+  .row-class{
+    height: 32px;
+    line-height: 32px;
+    background: rgb(111, 182, 206);
+    margin-bottom: 6px;
+    border-bottom: 0.5rpx solid #e9eaec;
+  }
+  .div-line{
+    background:#e9eaec;
+    width: 100%;
+    height: 0.5rpx;
+  }
 </style>
 <template>
   <view class="container">
@@ -12,8 +24,18 @@
       </repeat>
     </i-tabs>
     <view class="top-content"></view>
+    <i-row class="row-class">
+      <i-col span="20">
+        <i-input type="text" mode="wraped" placeholder={{intputHint}} maxlength="8" bind:change="handleSearch"/>
+      </i-col>
+      <i-col span="4">
+        <i-icon type="search" size="28" color="#80848f"/>
+      </i-col>
+    </i-row>
+    <view class="div-line"> </view>
     <poetryAuthorItem wx:if="{{current === '0'}}" :itemList.sync="poetryList"></poetryAuthorItem>
-    <poemAuthorItem wx:if="{{current === '1'}}" :itemList.sync="poemList"></poemAuthorItem>
+    <poetrySongAuthorItem wx:if="{{current === '1'}}" :itemList.sync="poetrySongList"></poetrySongAuthorItem>
+    <poemAuthorItem wx:if="{{current === '2'}}" :itemList.sync="poemList"></poemAuthorItem>
     <i-load-more tip="{{isLoading?'正在加载...':''}}" loading="{{ isLoading }}"/>
   </view>
 </template>
@@ -22,8 +44,6 @@
   import wepy from 'wepy'
   import authorItem from '../../components/author/author_item'
 
-  const AV = require('../../libs/av-weapp-min.js')
-
   export default class Index extends wepy.page {
     config = {
       navigationBarTitleText: '作者',
@@ -31,11 +51,16 @@
       usingComponents: {
         'i-tabs': '../../components/iview/tabs/index',
         'i-tab': '../../components/iview/tab/index',
-        'i-load-more': '../../components/iview/load-more/index'
+        'i-load-more': '../../components/iview/load-more/index',
+        'i-input': '../../components/iview/input/index',
+        'i-row': '../../components/iview/row/index',
+        'i-col': '../../components/iview/col/index',
+        'i-icon': '../../components/iview/icon/index'
       }
     }
     components = {
       poetryAuthorItem: authorItem,
+      poetrySongAuthorItem: authorItem,
       poemAuthorItem: authorItem
     }
 
@@ -43,12 +68,18 @@
 
     data = {
       current: '0',
-      pageSize: 30,
-      tabs: ['诗', '词'],
+      pageSize: 15,
+      pagePoetryCnt: 0,
+      pagePoetrySongCnt: 0,
+      pagePoemCnt: 0,
+      tabs: ['唐诗', '宋诗', '宋词'],
       poetryList: [],
+      poetrySongList: [],
       poemList: [],
+      keyWord: '',
       isLoadMore: false,
-      isLoading: false
+      isLoading: false,
+      intputHint: '输入关键字词查询-(作者3600人)'
     }
 
     computed = {}
@@ -60,16 +91,46 @@
         this.isLoading = false
         this.$apply()
         if (this.current === '0') {
-          // 诗作者
+          // 唐诗作者
+          this.intputHint = '输入关键字词查询-(作者3700人)'
           if (this.poetryList.length === 0) {
             this.getPoetryList()
           }
         } else if (this.current === '1') {
-          // 词作者
-          console.log(this.poemList.length)
+          // 宋诗作者
+          this.intputHint = '输入关键字词查询-(作者8900人)'
+          if (this.poetrySongList.length === 0) {
+            this.getPoetryList()
+          }
+        } else if (this.current === '2') {
+          // 宋词作者
+          this.intputHint = '输入关键字词查询-(作者1500人)'
           if (this.poemList.length === 0) {
             this.getPoemList()
           }
+        }
+      },
+      handleSearch(event) {
+        console.log(event.detail.detail.value)
+
+        this.keyWord = event.detail.detail.value
+
+        this.isLoadMore = false
+        this.isLoading = false
+        this.poetryList = []
+        this.poetrySongList = []
+        this.poemList = []
+        this.pagePoetryCnt = 0
+        this.pagePoetrySongCnt = 0
+        this.pagePoemCnt = 0
+        this.$apply()
+
+        if (this.current === '0' || this.current === '1') {
+          // 诗
+          this.getPoetryList()
+        } else if (this.current === '2') {
+          // 词
+          this.getPoemList()
         }
       }
     }
@@ -82,16 +143,24 @@
     }
 
     onPullDownRefresh() {
+      /*
       this.isLoadMore = false
       this.isLoading = false
 
       if (this.current === '0') {
         // 诗
+        this.pagePoetryCnt += 1
         this.getPoetryList()
       } else if (this.current === '1') {
+        // 诗
+        this.pagePoetrySongCnt += 1
+        this.getPoetryList()
+      } else if (this.current === '2') {
         // 词
+        this.pagePoemCnt += 1
         this.getPoemList()
       }
+      */
     }
 
     onReachBottom() {
@@ -99,9 +168,15 @@
       this.isLoadMore = true
       if (this.current === '0') {
         // 诗
+        this.pagePoetryCnt += 1
         this.getPoetryList()
       } else if (this.current === '1') {
+        // 诗
+        this.pagePoetrySongCnt += 1
+        this.getPoetryList()
+      } else if (this.current === '2') {
         // 词
+        this.pagePoemCnt += 1
         this.getPoemList()
       }
     }
@@ -112,34 +187,56 @@
     getPoetryList() {
       wepy.showNavigationBarLoading()
       let that = this
-      if (!that.isLoadMore) that.poetryList = []
-      let query = new AV.Query('poetry_author')
-      query.limit(that.pageSize)
-      if (that.poetryList.length > 0) {
-        let poetry = that.poetryList[that.poetryList.length - 1]
-        query.greaterThan('createdAt', new Date(poetry.createdAt))
+      let tbl = ''
+      let pageCnt = 0
+      if (this.current === '0') {
+        if (!that.isLoadMore) that.poetryList = []
+        tbl = 'tangshi-authors'
+        pageCnt = that.pagePoetryCnt
+      } else if (this.current === '1') {
+        if (!that.isLoadMore) that.poetrySongList = []
+        tbl = 'songshi-authors'
+        pageCnt = that.pagePoetrySongCnt
       }
-      query.find().then(function(results) {
-        console.log(results)
-        let items = []
-        for (let item of results) {
-          let value = item.toJSON()
-          let jsonValue = {
-            author_name: value.name,
-            author_intro: value.intro,
-            author_id: value.id,
-            author_type: 0
-          }
-          let jsonText = JSON.stringify(jsonValue)
-          value.jsonText = escape(jsonText)
-          items.push(value)
-        }
 
-        that.poetryList = [...that.poetryList, ...items]
-        that.stopRefresh()
-      }).catch(function(error) {
-        that.stopRefresh()
-        console.error(error)
+      let items = []
+      const db = wx.cloud.database()
+      let dbc = db.collection(tbl)
+                    .skip(that.pageSize * pageCnt)
+                    .limit(that.pageSize)
+      if (that.keyWord !== '') {
+        dbc = dbc.where({
+          name: db.RegExp({
+            regexp: that.keyWord,
+            options: 'i'
+          })
+        })
+      }
+      dbc.get({
+        success: function (results) {
+          for (let value of results.data) {
+            let jsonValue = {
+              author_name: value.name,
+              author_intro: value.desc,
+              author_id: value._id,
+              author_type: that.current
+            }
+            let jsonText = JSON.stringify(jsonValue)
+            value.jsonText = escape(jsonText)
+            value.type = 0
+            items.push(value)
+          }
+          if (that.current === '0') {
+            that.poetryList = [...that.poetryList, ...items]
+          } else if (that.current === '1') {
+            that.poetrySongList = [...that.poetrySongList, ...items]
+          }
+          that.stopRefresh()
+        },
+        fail: function (error) {
+          that.stopRefresh()
+          console.error(error)
+        }
       })
     }
 
@@ -150,37 +247,41 @@
       wepy.showNavigationBarLoading()
       let that = this
       if (!that.isLoadMore) that.poemList = []
-      let query = new AV.Query('poems_author')
-      query.limit(that.pageSize)
-      if (that.poemList.length > 0) {
-        let poem = that.poemList[that.poemList.length - 1]
-        query.greaterThan('createdAt', new Date(poem.createdAt))
+      let items = []
+      const db = wx.cloud.database()
+      let dbc = db.collection('songci-authors')
+                    .skip(that.pageSize * that.pagePoetryCnt)
+                    .limit(that.pageSize)
+      if (that.keyWord !== '') {
+        dbc = dbc.where({
+          name: db.RegExp({
+            regexp: that.keyWord,
+            options: 'i'
+          })
+        })
       }
-      query.find().then(function(results) {
-        console.log(results)
-        let items = []
-        for (let item of results) {
-          let value = item.toJSON()
-          if (value.intro_l === '--') {
-            value.intro = '暂无介绍'
-          } else {
-            value.intro = value.intro_l
+      dbc.get({
+        success: function (results) {
+          for (let value of results.data) {
+            let jsonValue = {
+              author_name: value.name,
+              author_intro: value.short_description,
+              author_introl: value.description,
+              author_id: value._id,
+              author_type: that.current
+            }
+            let jsonText = JSON.stringify(jsonValue)
+            value.jsonText = escape(jsonText)
+            value.type = 1
+            items.push(value)
           }
-          let jsonValue = {
-            author_name: value.name,
-            author_intro: value.intro,
-            author_id: value.id,
-            author_type: 1
-          }
-          let jsonText = JSON.stringify(jsonValue)
-          value.jsonText = escape(jsonText)
-          items.push(value)
+          that.poemList = [...that.poemList, ...items]
+          that.stopRefresh()
+        },
+        fail: function (error) {
+          that.stopRefresh()
+          console.error(error)
         }
-        that.poemList = [...that.poemList, ...items]
-        that.stopRefresh()
-      }).catch(function(error) {
-        that.stopRefresh()
-        console.error(error)
       })
     }
 

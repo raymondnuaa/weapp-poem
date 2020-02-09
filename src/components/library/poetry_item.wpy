@@ -24,7 +24,6 @@
   .poetry_author {
     font-size: 32rpx;
     color: #80848F;
-    overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
@@ -42,7 +41,7 @@
   <navigator class="poetry_content" wx:for="{{itemList}}" wx:key="item" url="/pages/library/item_detail?value={{item.jsonText}}">
     <view class="poetry_top">
       <view class="poetry_title">{{item.title}}</view>
-      <view class="poetry_author">{{item.dynasty==='T'?'[唐]':'[宋]'}}{{item.author}}</view>
+      <view class="poetry_author">{{item.author}}</view>
     </view>
     <view class="poetry_des">{{item.shortContent}}</view>
   </navigator>

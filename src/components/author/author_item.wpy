@@ -28,7 +28,8 @@
 <template>
   <navigator class="author_content" wx:for="{{itemList}}" wx:key="item" url="/pages/author/author_detail?value={{item.jsonText}}">
     <view class="author_title">{{item.name}}</view>
-    <view class="author_des">{{item.intro}}</view>
+    <view class="author_des" wx:if="{{ item.type == 0 }}"> {{item.desc}} </view>
+    <view class="author_des" wx:else> {{item.short_description}} </view>
   </navigator>
 </template>
 <script>

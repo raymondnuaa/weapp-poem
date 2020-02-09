@@ -2,6 +2,18 @@
   .top-content {
     height: 42px;
   }
+  .row-class{
+    height: 32px;
+    line-height: 32px;
+    background: rgb(111, 182, 206);
+    margin-bottom: 6px;
+    border-bottom: 0.5rpx solid #e9eaec;
+  }
+  .div-line{
+    background:#e9eaec;
+    width: 100%;
+    height: 0.5rpx;
+  }
 </style>
 <template>
   <view class="container">
@@ -12,14 +24,21 @@
       </repeat>
     </i-tabs>
     <view class="top-content"></view>
-    <!--诗-->
+    <i-row class="row-class">
+      <i-col span="20">
+        <i-input type="text" mode="wraped" placeholder="{{intputHint}}" maxlength="8" bind:change="handleSearch"/>
+      </i-col>
+      <i-col span="4">
+        <i-icon type="search" size="28" color="#80848f"/>
+      </i-col>
+    </i-row>
+    <view class="div-line"> </view>
+    <!--唐诗-->
     <poetryItem wx:if="{{current === '0'}}" :itemList.sync="poetryList"></poetryItem>
-    <!--词-->
-    <poemItem wx:if="{{current === '1'}}" :itemList.sync="poemList"></poemItem>
-    <!--论语-->
-    <analectsItem wx:if="{{current === '2'}}" :itemList.sync="analectsList"></analectsItem>
-    <!--诗经-->
-    <songsItem wx:if="{{current === '3'}}" :itemList.sync="songsList"></songsItem>
+    <!--宋诗-->
+    <poetrySongItem wx:if="{{current === '1'}}" :itemList.sync="poetrySongList"></poetrySongItem>
+    <!--宋词-->
+    <poemItem wx:if="{{current === '2'}}" :itemList.sync="poemList"></poemItem>
 
     <i-load-more tip="{{isLoading?'正在加载...':''}}" loading="{{ isLoading }}"/>
   </view>
@@ -29,10 +48,6 @@
   import wepy from 'wepy'
   import poetryItem from '../../components/library/poetry_item'
   import poemItem from '../../components/library/poem_item'
-  import analectsItem from '../../components/library/analects_item'
-  import songsItem from '../../components/library/songs_item'
-
-  const AV = require('../../libs/av-weapp-min.js')
 
   export default class Index extends wepy.page {
     config = {
@@ -41,29 +56,36 @@
       usingComponents: {
         'i-tabs': '../../components/iview/tabs/index',
         'i-tab': '../../components/iview/tab/index',
-        'i-load-more': '../../components/iview/load-more/index'
+        'i-load-more': '../../components/iview/load-more/index',
+        'i-input': '../../components/iview/input/index',
+        'i-row': '../../components/iview/row/index',
+        'i-col': '../../components/iview/col/index',
+        'i-icon': '../../components/iview/icon/index'
       }
     }
 
     components = {
       poetryItem: poetryItem,
-      poemItem: poemItem,
-      analectsItem: analectsItem,
-      songsItem: songsItem
+      poetrySongItem: poetryItem,
+      poemItem: poemItem
     }
 
     mixins = []
 
     data = {
       current: '0',
-      pageSize: 30,
-      tabs: ['诗', '词', '论语', '诗经'],
+      pageSize: 20,
+      pagePoetryCnt: 0,
+      pagePoetrySongCnt: 0,
+      pagePoemCnt: 0,
+      tabs: ['唐诗', '宋诗', '宋词'],
       poetryList: [],
+      poetrySongList: [],
       poemList: [],
-      analectsList: [],
-      songsList: [],
       isLoadMore: false,
-      isLoading: false
+      isLoading: false,
+      keyWord: '',
+      intputHint: '输入关键字词查询-(唐诗5万首)'
     }
 
     computed = {}
@@ -75,26 +97,46 @@
         this.isLoading = false
         this.$apply()
         if (this.current === '0') {
-          // 诗
+          // 唐诗
+          this.intputHint = '输入关键字词查询-(唐诗5万首)'
           if (this.poetryList.length === 0) {
             this.getPoetryList()
           }
         } else if (this.current === '1') {
-          // 词
-          console.log(this.poemList.length)
+          // 宋诗
+          this.intputHint = '输入关键字词查询-(宋诗25万首)'
+          if (this.poetrySongList.length === 0) {
+            this.getPoetryList()
+          }
+        } else if (this.current === '2') {
+          // 宋词
+          this.intputHint = '输入关键字词查询-(宋词2万首)'
           if (this.poemList.length === 0) {
             this.getPoemList()
           }
+        }
+      },
+      handleSearch(event) {
+        console.log(event.detail.detail.value)
+
+        this.keyWord = event.detail.detail.value
+
+        this.isLoadMore = false
+        this.isLoading = false
+        this.poetryList = []
+        this.poetrySongList = []
+        this.poemList = []
+        this.pagePoetryCnt = 0
+        this.pagePoetrySongCnt = 0
+        this.pagePoemCnt = 0
+        this.$apply()
+
+        if (this.current === '0' || this.current === '1') {
+          // 诗
+          this.getPoetryList()
         } else if (this.current === '2') {
-          // 论语
-          if (this.analectsList.length === 0) {
-            this.getAnalectsList()
-          }
-        } else if (this.current === '3') {
-          // 诗经
-          if (this.songsList.length === 0) {
-            this.getSongsList()
-          }
+          // 词
+          this.getPoemList()
         }
       }
     }
@@ -107,39 +149,41 @@
     }
 
     onPullDownRefresh() {
+      /*
       this.isLoadMore = false
       this.isLoading = false
 
       if (this.current === '0') {
         // 诗
+        this.pagePoetryCnt += 1
         this.getPoetryList()
-      } else if (this.current === '1') {
-        // 词
-        this.getPoemList()
+      } else if (this.current === '0') {
+        // 诗
+        this.pagePoetrySongCnt += 1
+        this.getPoetryList()
       } else if (this.current === '2') {
-        // 论语
-        this.getAnalectsList()
-      } else if (this.current === '3') {
-        // 诗经
-        this.getSongsList()
+        // 词
+        this.pagePoemCnt += 1
+        this.getPoemList()
       }
+      */
     }
 
     onReachBottom() {
       this.isLoading = true
       this.isLoadMore = true
       if (this.current === '0') {
-        // 诗
+        // 唐诗
+        this.pagePoetryCnt += 1
         this.getPoetryList()
       } else if (this.current === '1') {
-        // 词
-        this.getPoemList()
+        // 宋诗
+        this.pagePoetrySongCnt += 1
+        this.getPoetryList()
       } else if (this.current === '2') {
-        // 论语
-        this.getAnalectsList()
-      } else if (this.current === '3') {
-        // 诗经
-        this.getSongsList()
+        // 宋词
+        this.pagePoemCnt += 1
+        this.getPoemList()
       }
     }
 
@@ -147,80 +191,135 @@
      * 获取诗数据列表
      */
     getPoetryList() {
-      wepy.showNavigationBarLoading()
-      let that = this
-      if (!that.isLoadMore) that.poetryList = []
-      let query = new AV.Query('poetry')
-      query.limit(that.pageSize)
-      if (that.poetryList.length > 0) {
-        let poetry = that.poetryList[that.poetryList.length - 1]
-        query.greaterThan('createdAt', new Date(poetry.createdAt))
-      }
-      query.find().then(function(results) {
-        console.log(results)
+      function succFunc(results) {
         let items = []
-        for (let item of results) {
-          let value = item.toJSON()
+        for (let value of results) {
           let jsonValue = {
             item_title: value.title,
-            item_author: (value.dynasty === 'T' ? '[唐]' : '[宋]') + value.author,
-            item_content: value.content.split('|').join('\n'),
-            item_type: 0,
-            item_author_id: value.author_id
+            item_author: value.author,
+            item_content: {'para': value.paragraphs, 'ind': value.detail},
+            item_type: that.current
           }
           let jsonText = JSON.stringify(jsonValue)
           value.jsonText = escape(jsonText)
-          if (value.content.length > 0) {
-            let array = value.content.split('|')
-            if (array.length > 0) {
-              value.shortContent = array[0]
+          value.title = jsonValue.item_title
+          if (value.detail !== undefined) {
+            for (let ki in value.detail) {
+              if (value.detail[ki] >= 0) {
+                value.shortContent = value.paragraphs[ki]
+                break
+              }
             }
+          } else if (value.paragraphs.length > 0) {
+            value.shortContent = value.paragraphs[0]
           } else {
             value.shortContent = '暂无内容'
           }
           items.push(value)
         }
-
-        that.poetryList = [...that.poetryList, ...items]
+        if (that.current === '0') {
+          that.poetryList = [...that.poetryList, ...items]
+        } else if (that.current === '1') {
+          that.poetrySongList = [...that.poetrySongList, ...items]
+        }
         that.stopRefresh()
-      }).catch(function(error) {
+      }
+      function failFunc(error) {
         that.stopRefresh()
         console.error(error)
-      })
+      }
+
+      wepy.showNavigationBarLoading()
+      let that = this
+      let tbl = ''
+      let pageCnt = 0
+      if (that.current === '0') {
+        if (!that.isLoadMore) that.poetryList = []
+        tbl = 'tangshi'
+        pageCnt = that.pagePoetryCnt
+      } else if (that.current === '1') {
+        if (!that.isLoadMore) that.poetrySongList = []
+        tbl = 'songshi'
+        pageCnt = that.pagePoetrySongCnt
+      }
+
+      const db = wx.cloud.database()
+      const $ = db.command.aggregate
+      const dbc = db.collection(tbl)
+
+      if (this.keyWord !== '') {
+        dbc.aggregate()
+        .project({
+          findchar: $.map({
+            input: '$paragraphs',
+            as: 'num',
+            in: $.indexOfBytes(['$$num', that.keyWord])
+          }),
+          _id: 0,
+          author: 1,
+          author_id: 1,
+          title: 1,
+          paragraphs: 1
+        })
+        .project({
+          pcnt: $.add([$.size('$findchar'), $.sum('$findchar')]),
+          detail: '$findchar',
+          author: 1,
+          author_id: 1,
+          title: 1,
+          paragraphs: 1
+        })
+        .match({
+          pcnt: db.command.gt(0)
+        })
+        .skip(that.pageSize * pageCnt)
+        .limit(that.pageSize)
+        .end({
+          success: function (res) {
+            succFunc(res.list)
+          },
+          fail: function (err) {
+            console.error(err)
+          }
+        })
+      } else {
+        dbc.skip(that.pageSize * pageCnt)
+        .limit(that.pageSize)
+        .get({
+          success: function (res) {
+            succFunc(res.data)
+          },
+          fail: failFunc
+        })
+      }
     }
 
     /**
      * 获取词数据列表
      */
     getPoemList() {
-      wepy.showNavigationBarLoading()
-      let that = this
-      if (!that.isLoadMore) that.poemList = []
-      let query = new AV.Query('poems')
-      query.limit(that.pageSize)
-      if (that.poemList.length > 0) {
-        let poem = that.poemList[that.poemList.length - 1]
-        query.greaterThan('createdAt', new Date(poem.createdAt))
-      }
-      query.find().then(function(results) {
-        console.log(results)
+      function succFunc(results) {
         let items = []
-        for (let item of results) {
-          let value = item.toJSON()
+        for (let value of results) {
           let jsonValue = {
-            item_title: value.title,
+            item_title: value.rhythmic,
             item_author: value.author,
-            item_content: value.content.split('|').join('\n'),
-            item_type: 1,
+            item_content: {'para': value.paragraphs, 'ind': value.detail},
+            item_type: that.current,
             item_author_id: value.author_id
           }
           let jsonText = JSON.stringify(jsonValue)
           value.jsonText = escape(jsonText)
-          if (value.content.length > 0) {
-            let array = value.content.split('|')
-            if (array.length > 0) {
-              value.shortContent = array[0]
+          value.title = jsonValue.item_title
+          if (value.detail !== undefined) {
+            for (let ki in value.detail) {
+              if (value.detail[ki] >= 0) {
+                value.shortContent = value.paragraphs[ki]
+                break
+              }
             }
+          } else if (value.paragraphs.length > 0) {
+            value.shortContent = value.paragraphs[0]
           } else {
             value.shortContent = '暂无内容'
           }
@@ -228,102 +327,63 @@
         }
         that.poemList = [...that.poemList, ...items]
         that.stopRefresh()
-      }).catch(function(error) {
-        that.stopRefresh()
-        console.error(error)
-      })
-    }
-
-    /**
-     * 获取论语数据列表
-     */
-    getAnalectsList() {
+      }
       wepy.showNavigationBarLoading()
       let that = this
-      if (!that.isLoadMore) that.analectsList = []
-      let query = new AV.Query('lunyu')
-      query.limit(that.pageSize)
-      if (that.analectsList.length > 0) {
-        let analects = that.analectsList[that.analectsList.length - 1]
-        query.greaterThan('createdAt', new Date(analects.createdAt))
+      if (!that.isLoadMore) that.poemList = []
+
+      const db = wx.cloud.database()
+      const $ = db.command.aggregate
+      const dbc = db.collection('songci')
+
+      if (this.keyWord !== '') {
+        dbc.aggregate()
+        .project({
+          findchar: $.map({
+            input: '$paragraphs',
+            as: 'num',
+            in: $.indexOfBytes(['$$num', that.keyWord])
+          }),
+          _id: 0,
+          author: 1,
+          author_id: 1,
+          rhythmic: 1,
+          paragraphs: 1
+        })
+        .project({
+          pcnt: $.add([$.size('$findchar'), $.sum('$findchar')]),
+          detail: '$findchar',
+          author: 1,
+          author_id: 1,
+          rhythmic: 1,
+          paragraphs: 1
+        })
+        .match({
+          pcnt: db.command.gt(0)
+        })
+        .skip(that.pageSize * that.pagePoemCnt)
+        .limit(that.pageSize)
+        .end({
+          success: function (res) {
+            succFunc(res.list)
+          },
+          fail: function (err) {
+            console.error(err)
+          }
+        })
+      } else {
+        dbc.skip(that.pageSize * that.pagePoemCnt)
+        .limit(that.pageSize)
+        .get({
+          success: function (res) {
+            succFunc(res.data)
+          },
+          fail: function (error) {
+            that.stopRefresh()
+            console.error(error)
+          }
+        })
       }
-      query.find().then(function(results) {
-        console.log(results)
-        let items = []
-        for (let item of results) {
-          let value = item.toJSON()
-          let jsonValue = {
-            item_title: value.chapter,
-            item_author: null,
-            item_content: value.content.split('|').join('\n'),
-            item_type: 2,
-            item_author_id: 0
-          }
-          let jsonText = JSON.stringify(jsonValue)
-          value.jsonText = escape(jsonText)
-          if (value.content.length > 0) {
-            let array = value.content.split('|')
-            if (array.length > 0) {
-              value.shortContent = array[0]
-            }
-          } else {
-            value.shortContent = '暂无内容'
-          }
-          items.push(value)
-        }
-
-        that.analectsList = [...that.analectsList, ...items]
-        that.stopRefresh()
-      }).catch(function(error) {
-        that.stopRefresh()
-        console.error(error)
-      })
-    }
-
-    /**
-     * 获取诗经数据列表
-     */
-    getSongsList() {
-      wepy.showNavigationBarLoading()
-      let that = this
-      if (!that.isLoadMore) that.songsList = []
-      let query = new AV.Query('shijing')
-      query.limit(that.pageSize)
-      if (that.songsList.length > 0) {
-        let songs = that.songsList[that.songsList.length - 1]
-        query.greaterThan('createdAt', new Date(songs.createdAt))
-      }
-      query.find().then(function(results) {
-        console.log(results)
-        let items = []
-        for (let item of results) {
-          let value = item.toJSON()
-          let jsonValue = {
-            item_title: value.title,
-            item_author: '[先秦]诗经',
-            item_content: value.content.split('|').join('\n'),
-            item_type: 3,
-            item_author_id: 0
-          }
-          let jsonText = JSON.stringify(jsonValue)
-          value.jsonText = escape(jsonText)
-          if (value.content.length > 0) {
-            let array = value.content.split('|')
-            if (array.length > 0) {
-              value.shortContent = array[0]
-            }
-          } else {
-            value.shortContent = '暂无内容'
-          }
-          items.push(value)
-        }
-
-        that.songsList = [...that.songsList, ...items]
-        that.stopRefresh()
-      }).catch(function(error) {
-        that.stopRefresh()
-        console.error(error)
-      })
     }
 
     stopRefresh() {

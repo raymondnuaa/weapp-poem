@@ -1,5 +1,12 @@
 <style lang="less">
+  page {
+    height: 100%;
+    background-image:url(https://res.wx.qq.com/mmspraiweb_node/dist/static/xieshi/xiaoweiBackground.png);
+    background-size: 100% 100%;
+  }
   .item_detail_content {
+    height: 100%;
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -18,7 +25,6 @@
   .item_author {
     font-size: 36rpx;
     color: #495060;
-    overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
     padding-top: 15rpx;
@@ -37,6 +43,12 @@
     flex-wrap: wrap;
   }
 
+  .item_content_red {
+    font-size: 38rpx;
+    color: rgb(218, 73, 73);
+    flex-wrap: wrap;
+  }
+
   .view_author {
     display: flex;
     flex-direction: column;
@@ -51,14 +63,14 @@
   }
 
   .view_author_title {
-    font-size: 30rpx;
+    font-size: 35rpx;
     color: #2d8cf0;
   }
 
   .view_author_more {
     display: flex;
     flex-direction: row;
-    font-size: 30rpx;
+    font-size: 32rpx;
     color: #80848F;
   }
 
@@ -66,18 +78,17 @@
     display: -webkit-box;
     word-break: break-all;
     text-overflow: ellipsis;
-    overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 4;
     padding-top: 15rpx;
     padding-left: 50rpx;
     padding-right: 50rpx;
-    font-size: 30rpx;
+    font-size: 32rpx;
     color: #495060;
   }
 
   .view_temp {
-    height: 100rpx;
+    height: 30rpx;
   }
 
 </style>
@@ -88,19 +99,20 @@
     <!--作者-->
     <text wx:if="{{jsonValue.item_author}}" class="item_author">{{jsonValue.item_author}}</text>
     <!--内容-->
-    <view class="view_content">
-      <text class="item_content">{{jsonValue.item_content}}</text>
+    <view class="view_content" wx:for="{{jsonValue.item_content.para}}" wx:key="item" >
+      <text wx:if="{{jsonValue.item_content.ind[index] >= 0 }}" class="item_content_red"> {{item}} </text>
+      <text wx:else class="item_content"> {{item}} </text>
     </view>
     <!--作者信息-->
     <view wx:if="{{author}}" class="view_author">
       <view class="view_author_top">
         <view class="view_author_title">作者</view>
-        <view class="view_author_more" bindtap="tapMore">
+        <!--view class="view_author_more" bindtap="tapMore">
           <view>更多</view>
           <i-icon type="enter" size="12" color="#80848F" />
-        </view>
+        </view-->
       </view>
-      <view class="view_author_intro">{{author.intro}}</view>
+      <view class="view_author_intro">{{author.desc}}</view>
       <view class="view_temp"></view>
     </view>
     <i-toast id="toast" />
@@ -110,7 +122,6 @@
 <script>
   import wepy from 'wepy'
 
-  const AV = require('../../libs/av-weapp-min.js')
   const { $Toast } = require('../../components/iview/base/index')
 
   export default class ItemDetail extends wepy.page {
@@ -135,9 +146,9 @@
       tapMore() {
         let jsonValue = {
           author_name: this.author.name,
-          author_intro: this.author.intro,
+          author_intro: this.author.desc,
           author_id: this.author.id,
-          author_type: this.jsonValue.item_type === 0 ? 0 : 1
+          author_type: this.jsonValue.item_type
         }
         let jsonText = escape(JSON.stringify(jsonValue))
         wepy.navigateTo({
@@ -149,14 +160,26 @@
     events = {}
 
     async onLoad(option) {
+      wepy.showShareMenu()
       if (option.value) {
         this.jsonValue = JSON.parse(unescape(option.value))
       }
-      if (this.jsonValue.item_author_id > 0) {
+      wepy.setNavigationBarTitle({
+        title: this.jsonValue.item_title
+      })
+      if (this.jsonValue.item_author) {
         this.getAuthor()
       }
     }
 
+    onShareAppMessage(option) {
+      let title = this.jsonValue.item_author + '《' + this.jsonValue.item_title + '》'
+      let path = '/pages/library/item_detail'
+      return {
+        title: title,
+        path: path
+      }
+    }
     /**
      * 获取作者信息
      */
@@ -166,30 +189,40 @@
         type: 'loading'
       })
       let that = this
-      let query = null
-      if (that.jsonValue.item_type === 0) {
-        // 诗作者
-        query = new AV.Query('poetry_author')
-      } else if (that.jsonValue.item_type === 1) {
-        query = new AV.Query('poems_author')
+      let tbl = ''
+
+      if (that.jsonValue.item_type === '0') {
+        tbl = 'tangshi-authors'
+      } else if (that.jsonValue.item_type === '1') {
+        tbl = 'songshi-authors'
+      } else if (that.jsonValue.item_type === '2') {
+        tbl = 'songci-authors'
       }
-      if (query) {
-        query.equalTo('id', this.jsonValue.item_author_id)
-        query.find().then(function(results) {
-          console.log(results)
-          if (results.length > 0) {
-            that.author = results[0].toJSON()
-            if (that.jsonValue.item_type === 1) {
-              that.author.intro = that.author.intro_l
+      const db = wx.cloud.database()
+      db.collection(tbl)
+      .where({name: that.jsonValue.item_author})
+      .get({
+        success: function (results) {
+          if (results.data.length > 0) {
+            let authDes = ''
+            if (that.jsonValue.item_type === '0' || that.jsonValue.item_type === '1') {
+              authDes = results.data[0].desc
+            } else if (that.jsonValue.item_type === '2') {
+              authDes = results.data[0].description
+            }
+            if (authDes.length > 0) {
+              that.author = results.data[0]
+              that.author.desc = authDes
             }
           }
           that.$apply()
           $Toast.hide()
-        }).catch(function(error) {
+        },
+        fail: function (error) {
           $Toast.hide()
           console.error(error)
-        })
-      }
+        }
+      })
     }
   }
 </script>

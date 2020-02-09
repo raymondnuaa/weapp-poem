@@ -1,13 +1,16 @@
 {
-  "description": "poem weapp",
-  "setting": {
-    "urlCheck": true,
-    "es6": false,
-    "postcss": false,
-    "minified": false
-  },
-  "compileType": "miniprogram",
-  "appid": "wxb13f7d7721d6da56",
-  "projectname": "weapp-poem",
-  "miniprogramRoot": "./dist"
+	"description": "poem weapp",
+	"setting": {
+		"urlCheck": true,
+		"es6": false,
+		"postcss": false,
+		"minified": false
+	},
+	"compileType": "miniprogram",
+	"appid": "wxf496cf0ee5c432e3",
+	"projectname": "weapp-poem",
+	"miniprogramRoot": "dist/",
+	"simulatorType": "wechat",
+	"simulatorPluginLibVersion": {},
+	"condition": {}
 }

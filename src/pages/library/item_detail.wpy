@@ -106,7 +106,7 @@
     <!--作者信息-->
     <view wx:if="{{author}}" class="view_author">
       <view class="view_author_top">
-        <view class="view_author_title">作者</view>
+        <view class="view_author_title"></view>
         <!--view class="view_author_more" bindtap="tapMore">
           <view>更多</view>
           <i-icon type="enter" size="12" color="#80848F" />
@@ -174,7 +174,8 @@
 
     onShareAppMessage(option) {
       let title = this.jsonValue.item_author + '《' + this.jsonValue.item_title + '》'
-      let path = '/pages/library/item_detail'
+      let jsonText = escape(JSON.stringify(this.jsonValue))
+      let path = '/pages/library/item_detail?value=' + jsonText
       return {
         title: title,
         path: path

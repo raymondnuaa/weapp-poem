@@ -44,7 +44,8 @@
 
     data = {
       itemList: [],
-      item: {}
+      item: {},
+      dataFetched: false
     }
 
     computed = {}
@@ -57,21 +58,33 @@
 
     events = {}
 
-    async onLoad() {
+    async onLoad(option) {
       wepy.showShareMenu()
-      this.getItemList()
+      if (option.value) {
+        this.item = JSON.parse(unescape(option.value))
+        this.itemList.push(this.item)
+        this.item.index = 0
+      } else {
+        this.getItemList()
+        this.dataFetched = true
+      }
       this.$apply()
     }
 
     onPullDownRefresh() {
-      this.randomItem()
+      if (this.dataFetched === false) {
+        this.getItemList()
+      } else {
+        this.randomItem()
+      }
       this.$apply()
       wepy.stopPullDownRefresh()
     }
 
     onShareAppMessage(option) {
       let title = this.item.author + '《' + this.item.title + '》'
-      let path = '/pages/extract/index'
+      let jsonText = escape(JSON.stringify(this.item))
+      let path = '/pages/extract/index?value=' + jsonText
       return {
         title: title,
         path: path
